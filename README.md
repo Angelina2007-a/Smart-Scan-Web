@@ -48,7 +48,8 @@ It features a unique **Consumer Safety Engine** that automatically detects and b
 
 | **Login Interface** | **Billing Dashboard** |
 | :---: | :---: |
-|                  |                  |
+| <img width="1512" height="797" alt="image" src="https://github.com/user-attachments/assets/a1c91e07-3f0e-46e3-ab1c-5bb1118582ab" />| <img width="1907" height="898" alt="image" src="https://github.com/user-attachments/assets/81c34a68-19c0-449c-94eb-81622eb2adbe" />
+            
 
 ---
 
