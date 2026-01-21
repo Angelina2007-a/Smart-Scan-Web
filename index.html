@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartPOS | Vision Terminal</title>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <style>
+        :root { --primary: #0f172a; --accent: #2563eb; --danger: #dc2626; --success: #16a34a; --border: #e2e8f0; --bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background: var(--bg); transition: background 0.4s ease; }
+        
+        /* Layout */
+        .header { background: var(--primary); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .main-container { display: grid; grid-template-columns: 1fr 400px; gap: 20px; padding: 20px; }
+        .panel { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 20px; border: 1px solid var(--border); }
+        
+        /* Table Styles */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th { text-align: left; padding: 12px; border-bottom: 2px solid #edf2f7; color: #64748b; font-size: 0.75rem; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #edf2f7; font-weight: 500; font-size: 0.9rem; }
+
+        /* Billing Summary */
+        .bill-details { border-top: 2px solid #f1f5f9; padding-top: 20px; }
+        .bill-row { display: flex; justify-content: space-between; margin-bottom: 10px; color: #64748b; font-weight: 600; }
+        .total-row { display: flex; justify-content: space-between; margin-top: 15px; padding-top: 15px; border-top: 2px solid #f1f5f9; color: var(--primary); font-size: 1.5rem; font-weight: 800; }
+
+        /* Vision Engine */
+        #video-wrap { width: 100%; border-radius: 10px; overflow: hidden; background: #000; border: 4px solid var(--primary); }
+        video { width: 100%; display: block; height: 200px; object-fit: cover; }
+        .ocr-box { background: #f1f5f9; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; height: 50px; overflow: auto; margin-top: 10px; border: 1px solid var(--border); }
+
+        /* Buttons */
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn { cursor: pointer; border-radius: 8px; font-weight: bold; border: none; padding: 15px; transition: 0.3s; font-size: 0.9rem; }
+        .btn-print { background: var(--accent); color: white; }
+        .btn-pay { background: white; color: var(--accent); border: 2px solid var(--accent); }
+        .btn-scan { background: var(--success); color: white; width: 100%; margin-top: 10px; }
+
+        /* Expiry Alert */
+        .body-expired { background: #fee2e2 !important; }
+        .panel-expired { border: 3px solid var(--danger) !important; animation: shake 0.4s; }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-5px);} 75% {transform: translateX(5px);} }
+
+        /* Receipt Page Styles */
+        #receipt-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f1f5f9; z-index: 9999; padding: 20px; overflow-y: auto; }
+        .receipt-card { max-width: 450px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 8px; }
+        .receipt-header { text-align: center; margin-bottom: 20px; }
+        .receipt-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .receipt-table th { border-bottom: 1px solid #000; padding: 8px; font-size: 0.7rem; }
+        .receipt-table td { padding: 10px 8px; border-bottom: 1px dashed #eee; font-size: 0.85rem; }
+        .receipt-total-section { border-top: 2px solid #333; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="main-terminal">
+    <div class="header">
+        <div style="font-weight: 900;">🛒 All In One Supermarket</div>
+        <div>Terminal: COUNTER-01</div>
+    </div>
+
+    <div class="main-container">
+        <div class="content-left">
+            <div class="panel" id="billing-panel">
+                <table>
+                    <thead>
+                        <tr><th>Item Name</th><th>Brand</th><th>Qty</th><th>Price</th></tr>
+                    </thead>
+                    <tbody id="billing-body"></tbody>
+                </table>
+                
+                <div class="bill-details">
+                    <div class="bill-row"><span>Sub Total</span><span>₹ <span id="sub-total">0.00</span></span></div>
+                    <div class="bill-row"><span>Item Tax (5%)</span><span>₹ <span id="item-tax">0.00</span></span></div>
+                    <div class="total-row"><span>Total</span><span>₹ <span id="grand-total">0.00</span></span></div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-print" onclick="printBill()">Save & Print Bill</button>
+                    <button class="btn btn-pay" onclick="alert('Proceeding to Payment...')">Pay Now</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-right">
+            <div class="panel">
+                <h3 style="margin:0 0 10px 0;">Vision Engine</h3>
+                <div id="video-wrap"><video id="webcam" autoplay playsinline></video></div>
+                <button class="btn btn-scan" id="scan-btn" onclick="captureAndOCR()">SCAN LABEL</button>
+                <div class="ocr-box" id="raw-ocr-text">Waiting for input...</div>
+                <div id="alert-box" style="display:none; padding:10px; border-radius:5px; margin-top:10px; text-align:center; font-weight:bold;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="receipt-page">
+    <div class="receipt-card">
+        <div class="receipt-header">
+            <h1 style="margin:0; color:var(--primary);">INVOICE</h1>
+            <p style="margin:5px 0; font-size:0.9rem; color:#666;"><strong>All In One Supermarket</strong><br>13, 2nd Cross, Bangalore - 560001</p>
+            <p style="font-size:0.75rem; color:#999;">Date: 27-12-2025 | Time: 10:45 AM</p>
+        </div>
+        
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th style="text-align: left;">ITEM</th>
+                    <th>QTY</th>
+                    <th style="text-align: right;">AMOUNT</th>
+                </tr>
+            </thead>
+            <tbody id="receipt-items-list">
+                </tbody>
+        </table>
+        
+        <div class="receipt-total-section">
+            <div class="bill-row" style="font-size:0.9rem;"><span>Sub Total:</span><span>₹ <span id="r-sub">0.00</span></span></div>
+            <div class="bill-row" style="font-size:0.9rem;"><span>Tax (5%):</span><span>₹ <span id="r-tax">0.00</span></span></div>
+            <div class="bill-row" style="font-size:1.2rem; color:#000; margin-top:10px;"><span><strong>TOTAL:</strong></span><span><strong>₹ <span id="r-total">0.00</span></strong></span></div>
+        </div>
+
+        <div style="margin-top:30px; text-align:center;">
+            <p style="font-size:0.8rem; font-style:italic;">Thank you for shopping with us!</p>
+            <div class="btn-group">
+                <button class="btn btn-print" onclick="window.location.reload()">New Sale</button>
+                <button class="btn btn-pay" onclick="window.print()">Print PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let grandTotal = 0;
+    let sequenceIndex = 0;
+    let itemsList = []; // Array to store objects for clean receipt rendering
+    const demoSequence = ["8901138848484", "890123456701", "890123456707", "8901396315803", "8906037000410"];
+
+    async function startCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        document.getElementById('webcam').srcObject = stream;
+    }
+
+    async function captureAndOCR() {
+        const btn = document.getElementById('scan-btn');
+        btn.innerText = "🔍 ANALYZING...";
+        const canvas = document.createElement('canvas');
+        canvas.width = 640; canvas.height = 480;
+        canvas.getContext('2d').drawImage(document.getElementById('webcam'), 0, 0);
+
+        try {
+            const result = await Tesseract.recognize(canvas, 'eng');
+            let code = demoSequence[sequenceIndex];
+            const response = await fetch('/scan', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ barcode: code })
+            });
+            const data = await response.json();
+            handleResult(data);
+            sequenceIndex = (sequenceIndex + 1) % demoSequence.length;
+        } catch (e) { console.error(e); }
+        btn.innerText = "SCAN LABEL";
+    }
+
+    function handleResult(data) {
+        const alertBox = document.getElementById('alert-box');
+        alertBox.style.display = "block";
+        alertBox.innerText = data.message;
+        
+        if (data.status === "VALID") {
+            alertBox.style.background = "#dcfce7"; alertBox.style.color = "#166534";
+            document.body.className = "";
+            document.getElementById('billing-panel').className = "panel";
+            addItem(data.product);
+        } else {
+            alertBox.style.background = "#dc2626"; alertBox.style.color = "white";
+            document.body.className = "body-expired";
+            document.getElementById('billing-panel').className = "panel panel-expired";
+            window.speechSynthesis.speak(new SpeechSynthesisUtterance("Item Expired"));
+        }
+    }
+
+    function addItem(p) {
+        // Add to main table
+        const row = `<tr><td>${p.name}</td><td>${p.brand}</td><td>1</td><td>₹${p.price.toFixed(2)}</td></tr>`;
+        document.getElementById('billing-body').innerHTML += row;
+        
+        // Add to items array for receipt
+        itemsList.push(p);
+        
+        grandTotal += p.price;
+        let tax = grandTotal * 0.05;
+        document.getElementById('sub-total').innerText = grandTotal.toFixed(2);
+        document.getElementById('item-tax').innerText = tax.toFixed(2);
+        document.getElementById('grand-total').innerText = (grandTotal + tax).toFixed(2);
+    }
+
+    function printBill() {
+        if (itemsList.length === 0) return alert("Please add items first!");
+        
+        // Populate Receipt List one by one
+        const receiptItemsList = document.getElementById('receipt-items-list');
+        receiptItemsList.innerHTML = ""; // Clear existing
+        
+        itemsList.forEach(item => {
+            const rRow = `
+                <tr>
+                    <td style="text-align: left;">${item.name}</td>
+                    <td style="text-align: center;">1</td>
+                    <td style="text-align: right;">₹${item.price.toFixed(2)}</td>
+                </tr>
+            `;
+            receiptItemsList.innerHTML += rRow;
+        });
+
+        // Set totals in receipt
+        const sub = grandTotal;
+        const tax = sub * 0.05;
+        document.getElementById('r-sub').innerText = sub.toFixed(2);
+        document.getElementById('r-tax').innerText = tax.toFixed(2);
+        document.getElementById('r-total').innerText = (sub + tax).toFixed(2);
+
+        // Switch View
+        document.getElementById('main-terminal').style.display = "none";
+        document.getElementById('receipt-page').style.display = "block";
+    }
+
+    window.onload = startCamera;
+</script>
+</body>
+</html>
