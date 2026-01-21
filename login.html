@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPOS | Secure Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #0f172a; --accent: #2563eb; --text-main: #1e293b; --text-muted: #64748b; --bg: #f8fafc; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg); background-image: radial-gradient(#e2e8f0 0.5px, transparent 0.5px); background-size: 24px 24px; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { background: white; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); width: 100%; max-width: 400px; border: 1px solid #e2e8f0; text-align: center; }
+        .logo-icon { background: var(--primary); color: white; width: 48px; height: 48px; border-radius: 0.75rem; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; margin: 0 auto 1rem; }
+        h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin: 0; }
+        .subtitle { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.25rem; text-align: left; }
+        label { display: block; font-size: 0.875rem; font-weight: 600; color: var(--text-main); margin-bottom: 0.5rem; }
+        input { width: 100%; padding: 0.75rem 1rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; font-size: 1rem; box-sizing: border-box; }
+        input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        button { width: 100%; padding: 0.75rem; background: var(--accent); color: white; border: none; border-radius: 0.5rem; font-size: 1rem; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 1rem; }
+        button:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .status-dot { display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; margin-right: 4px; }
+        .footer-note { margin-top: 1.5rem; font-size: 0.75rem; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <div class="login-container">
+        <div class="logo-icon">🛒</div>
+        <h1>SmartPOS System</h1>
+        <p class="subtitle">Enter credentials to access terminal</p>
+
+        <div class="form-group">
+            <label for="sysName">Terminal ID</label>
+            <input type="text" id="sysName" placeholder="e.g. COUNTER-01" required>
+        </div>
+
+        <div class="form-group">
+            <label for="sysPass">Access Key</label>
+            <input type="password" id="sysPass" placeholder="••••••••" required>
+        </div>
+
+        <button id="loginBtn" onclick="handleLogin()">Authorize Entry</button>
+
+        <div class="footer-note">
+            <span class="status-dot"></span> System Online · V1.0.4
+        </div>
+    </div>
+
+    <script>
+        function handleLogin() {
+            const btn = document.getElementById('loginBtn');
+            const name = document.getElementById('sysName').value;
+            const pass = document.getElementById('sysPass').value;
+
+            if (name && pass) {
+                btn.innerText = "Authenticating...";
+                btn.disabled = true;
+                btn.style.opacity = "0.7";
+                
+                // Simulate delay for professional look, then redirect to the Billing route
+                setTimeout(() => {
+                    window.location.href = "/billing"; 
+                }, 1000);
+            } else {
+                alert("Security Error: Please fill in all credentials.");
+            }
+        }
+
+        document.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+    </script>
+</body>
+</html>
